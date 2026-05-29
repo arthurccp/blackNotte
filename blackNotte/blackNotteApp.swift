@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct blackNotteApp: App {
@@ -13,5 +14,9 @@ struct blackNotteApp: App {
         WindowGroup {
             MainTabView()
         }
+        .modelContainer(for: [
+            ThoughtNote.self,
+            ThoughtAnalysis.self
+        ])
     }
 }
