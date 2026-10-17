@@ -4,6 +4,21 @@ Um refinador de ideias por voz: um espaço para pensar em voz alta, desenvolver 
 
 > Conte do seu jeito. Algumas perguntas ajudam a organizar suas ideias e transformar pensamentos soltos em uma nota clara.
 
+## Screenshots
+
+<table>
+  <tr>
+    <th>Tela de captura</th>
+    <th>Gravação por voz</th>
+    <th>Biblioteca de notas</th>
+  </tr>
+  <tr>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.39.png" alt="Tela de captura do blackNotte" width="260"></td>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.45.png" alt="Gravação por voz do blackNotte" width="260"></td>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.57.png" alt="Biblioteca de notas do blackNotte" width="260"></td>
+  </tr>
+</table>
+
 ## Por que criei este app
 
 O blackNotte nasceu de uma ideia minha e de uma necessidade pessoal: eu tinha ideias que considerava brilhantes em lugares e momentos em que nem sempre podia parar para anotar. Queria conseguir registrá-las antes que se perdessem, sem precisar organizar tudo na cabeça primeiro.
