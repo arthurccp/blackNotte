@@ -5,47 +5,83 @@ struct NoteDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var note: ThoughtNote
     @StateObject private var viewModel = NoteDetailViewModel()
+    @StateObject private var voiceService = VoiceCaptureService()
+
+    @State private var saveError: String?
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                noteContent
-                agentSection
+        VStack(alignment: .leading, spacing: 16) {
+            Text(note.title)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .textSelection(.enabled)
+
+            if note.finalDetails != nil {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Sua ideia ganhou forma.")
+                        .font(.headline)
+                    TextEditor(text: Binding(
+                        get: { note.finalDetails ?? "" },
+                        set: { note.finalDetails = $0 }
+                    ))
+                    .frame(minHeight: 300)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .accessibilityLabel("Detalhamento da ideia")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding(20)
+
+            TextEditor(text: $note.rawText)
+                .frame(minHeight: 300)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .overlay(alignment: .topLeading) {
+                    if note.rawText.isEmpty {
+                        Text("Escreva suas ideias aqui…")
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .accessibilityLabel("Conteúdo da anotação")
         }
-        .navigationTitle(note.title)
+        .padding(20)
+        }
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Nao foi possivel analisar", isPresented: Binding(
-            get: { viewModel.errorMessage != nil },
-            set: { _ in viewModel.errorMessage = nil }
+        .onChange(of: note.rawText) { _, _ in
+            note.updatedAt = .now
+            saveChanges()
+        }
+        .onChange(of: note.finalDetails) { _, _ in
+            note.updatedAt = .now
+            saveChanges()
+        }
+        .onDisappear {
+            saveChanges()
+        }
+        .alert("Não foi possível salvar", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
         )) {
+            Button("Tentar novamente") { saveChanges() }
             Button("OK", role: .cancel) {}
         } message: {
-            Text(viewModel.errorMessage ?? "Erro desconhecido.")
+            Text(saveError ?? "")
         }
     }
 
-    private var noteContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Nota original")
-                .font(.headline)
-
-            TextEditor(text: $note.rawText)
-                .frame(minHeight: 160)
-                .padding(12)
-                .scrollContentBackground(.hidden)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .onChange(of: note.rawText) { _, newValue in
-                    note.title = ThoughtNote.makeTitle(from: newValue)
-                    note.updatedAt = .now
-                    try? modelContext.save()
-                }
-
-            if !note.tags.isEmpty {
-                TagsView(tags: note.tags)
-            }
+    private func saveChanges() {
+        do {
+            try modelContext.save()
+            saveError = nil
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 
@@ -55,7 +91,7 @@ struct NoteDetailView: View {
                 Label("Agente Pensador", systemImage: "sparkles")
                     .font(.headline)
 
-                Text(note.analysis == nil ? "Use a IA para elaborar esta anotacao." : "Analise gerada pela IA para esta anotacao.")
+                Text(note.analysis == nil ? "Use a IA para interpretar esta anotacao." : "Interpretacao gerada pela IA para esta anotacao.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -81,11 +117,29 @@ struct NoteDetailView: View {
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isAnalyzing || note.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
+            Button {
+                viewModel.isDiscussionVisible.toggle()
+            } label: {
+                HStack {
+                    Image(systemName: viewModel.isDiscussionVisible ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
+                    Text(viewModel.isDiscussionVisible ? "Fechar discussao" : "Discutir por voz")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+            }
+            .buttonStyle(.bordered)
+            .disabled(note.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+            if viewModel.isDiscussionVisible {
+                discussionSection
+            }
+
             if let analysis = note.analysis {
                 Divider()
                 AnalysisView(analysis: analysis)
             } else {
-                Text("Nenhum aprofundamento gerado ainda.")
+                Text("Nenhuma interpretacao gerada ainda.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -101,6 +155,87 @@ struct NoteDetailView: View {
                 .stroke(Color(.separator), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var discussionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Discutir a nota")
+                .font(.headline)
+
+            Text("Faça uma pergunta sobre esta nota e ouça a resposta.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            VoiceOrbButton(
+                isRecording: voiceService.isRecording,
+                isLoading: viewModel.isDiscussing,
+                title: voiceService.isRecording ? "Parar e enviar" : "Gravar pergunta",
+                subtitle: voiceService.isRecording ? "Toque para encerrar e enviar sua pergunta." : "Toque para comecar a falar."
+            ) {
+                handleVoiceDiscussion()
+            }
+            .disabled(viewModel.isDiscussing)
+
+            if voiceService.isRecording {
+                Text("Gravando sua pergunta...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let errorMessage = viewModel.discussionErrorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            if let response = viewModel.discussionResponse {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Resposta falada", systemImage: "speaker.wave.2.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text("A resposta foi falada no aparelho. Use o botao abaixo para ouvir de novo.")
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Text("Confianca: \(response.confidence.capitalized)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button {
+                            viewModel.speakDiscussionResponse()
+                        } label: {
+                            Label("Ouvir novamente", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(16)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    private func handleVoiceDiscussion() {
+        if voiceService.isRecording {
+            let question = voiceService.stopRecordingAndReturnTranscript()
+            viewModel.resetDiscussionState()
+
+            Task {
+                await viewModel.discuss(note: note, question: question)
+            }
+        } else {
+            Task {
+                await voiceService.requestPermissions()
+                guard !voiceService.showPermissionAlert else { return }
+                viewModel.stopSpeaking()
+                viewModel.resetDiscussionState()
+                voiceService.startRecording()
+            }
+        }
     }
 
     private var modeSelector: some View {
@@ -143,6 +278,7 @@ private struct AnalysisView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            ListBlock(title: "Topicos", items: analysis.topics)
             SectionBlock(title: "Confianca", text: analysis.confidence.capitalized)
             ListBlock(title: "Fatos observados", items: analysis.observedFacts)
             ListBlock(title: "Inferencias", items: analysis.inferences)

@@ -13,6 +13,7 @@ final class VoiceCaptureService: ObservableObject {
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var isStoppingManually = false
 
     func requestPermissions() async {
         let speechStatus = await withCheckedContinuation { continuation in
@@ -36,6 +37,7 @@ final class VoiceCaptureService: ObservableObject {
 
     func startRecording() {
         stopRecording()
+        isStoppingManually = false
         transcript = ""
         errorMessage = nil
 
@@ -78,6 +80,14 @@ final class VoiceCaptureService: ObservableObject {
                 }
 
                 if let error {
+                    let nsError = error as NSError
+                    let isCancellation = self?.isStoppingManually == true || nsError.localizedDescription.localizedCaseInsensitiveContains("canceled") || nsError.localizedDescription.localizedCaseInsensitiveContains("cancelled")
+
+                    if isCancellation {
+                        self?.isStoppingManually = false
+                        return
+                    }
+
                     self?.errorMessage = "Erro no reconhecimento: \(error.localizedDescription)"
                     self?.stopRecording()
                 }
@@ -86,6 +96,8 @@ final class VoiceCaptureService: ObservableObject {
     }
 
     func stopRecording() {
+        isStoppingManually = true
+
         if audioEngine.isRunning {
             audioEngine.stop()
             audioEngine.inputNode.removeTap(onBus: 0)
@@ -96,5 +108,12 @@ final class VoiceCaptureService: ObservableObject {
         recognitionTask?.cancel()
         recognitionTask = nil
         isRecording = false
+        isStoppingManually = false
+    }
+
+    func stopRecordingAndReturnTranscript() -> String {
+        let finalTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        stopRecording()
+        return finalTranscript
     }
 }

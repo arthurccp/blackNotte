@@ -3,7 +3,7 @@ import Foundation
 struct OpenAIResponsesRequest: Encodable {
     let model: String
     let input: [OpenAIInputMessage]
-    let text: OpenAITextConfiguration
+    let text: OpenAITextConfiguration?
 }
 
 struct OpenAIInputMessage: Encodable {
@@ -49,6 +49,10 @@ struct OpenAISchemaProperty: Encodable {
             description: description,
             items: OpenAISchemaArrayItem(type: "string")
         )
+    }
+
+    static func bool(_ description: String) -> OpenAISchemaProperty {
+        OpenAISchemaProperty(type: "boolean", description: description, items: nil)
     }
 }
 

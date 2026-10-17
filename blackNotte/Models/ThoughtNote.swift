@@ -17,6 +17,8 @@ final class ThoughtNote {
     var category: String?
     var tagsText: String
     var analysis: ThoughtAnalysis?
+    var ideaSummary: String?
+    var finalDetails: String?
 
     init(
         id: UUID = UUID(),
@@ -58,6 +60,7 @@ final class ThoughtNote {
 @Model
 final class ThoughtAnalysis {
     @Attribute(.unique) var id: UUID
+    var topicsText: String
     var centralIdea: String
     var deepReading: String
     var summary: String
@@ -75,6 +78,7 @@ final class ThoughtAnalysis {
 
     init(
         id: UUID = UUID(),
+        topics: [String],
         centralIdea: String,
         deepReading: String,
         summary: String,
@@ -91,6 +95,7 @@ final class ThoughtAnalysis {
         createdAt: Date = .now
     ) {
         self.id = id
+        self.topicsText = topics.joined(separator: "\n")
         self.centralIdea = centralIdea
         self.deepReading = deepReading
         self.summary = summary
@@ -107,6 +112,7 @@ final class ThoughtAnalysis {
         self.createdAt = createdAt
     }
 
+    var topics: [String] { topicsText.linesList }
     var questions: [String] { questionsText.linesList }
     var risks: [String] { risksText.linesList }
     var nextSteps: [String] { nextStepsText.linesList }

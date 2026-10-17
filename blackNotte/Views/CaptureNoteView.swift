@@ -4,23 +4,27 @@ import SwiftUI
 struct CaptureNoteView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var voiceService: VoiceCaptureService
-    @State private var noteText = ""
     @State private var lastSavedNote: ThoughtNote?
+    @State private var showsSavedNote = false
+    @StateObject private var draftViewModel = VoiceIdeaDraftViewModel()
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
-                    editor
                     voiceCapture
-                    saveButton
+                    promptCard
 
-                    if let lastSavedNote {
+                    if let finalNote = draftViewModel.finalNote {
+                        finalNoteCard(note: finalNote)
+                    }
+
+                    if let savedNote = draftViewModel.savedNote ?? lastSavedNote {
                         NavigationLink {
-                            NoteDetailView(note: lastSavedNote)
+                            NoteDetailView(note: savedNote)
                         } label: {
-                            Label("Abrir ultima nota salva", systemImage: "arrow.right.circle")
+                            Label("Abrir nota salva", systemImage: "arrow.right.circle")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
@@ -29,82 +33,157 @@ struct CaptureNoteView: View {
                 .padding(20)
             }
             .navigationTitle("blackNotte")
-            .onChange(of: voiceService.transcript) { _, newValue in
-                noteText = newValue
+            .navigationDestination(isPresented: $showsSavedNote) {
+                if let note = lastSavedNote {
+                    NoteDetailView(note: note)
+                }
             }
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Capture um pensamento")
+            Text("Fale sua ideia.")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Escreva ou fale uma ideia solta. Depois salve e aprofunde com IA.")
+            Text("Conte do seu jeito. Algumas perguntas ajudam a organizar suas ideias e transformar pensamentos soltos em uma nota clara.")
                 .foregroundStyle(.secondary)
         }
     }
 
-    private var editor: some View {
-        TextEditor(text: $noteText)
-            .frame(minHeight: 220)
-            .padding(12)
-            .scrollContentBackground(.hidden)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(alignment: .topLeading) {
-                if noteText.isEmpty {
-                    Text("Digite sua ideia, duvida, reflexao ou plano incompleto...")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 20)
-                        .allowsHitTesting(false)
+    private var voiceCapture: some View {
+        VStack(spacing: 12) {
+            VoiceOrbButton(
+                isRecording: voiceService.isRecording,
+                isLoading: draftViewModel.isProcessing,
+                title: voiceService.isRecording ? "Parar gravacao" : "Gravar por voz",
+                subtitle: voiceService.isRecording ? "Toque para encerrar e continuar a conversa." : "Toque para começar a falar."
+            ) {
+                handleVoiceCapture()
+            }
+            .frame(maxWidth: .infinity)
+            .disabled(draftViewModel.isProcessing)
+
+            if voiceService.isRecording {
+                Text("Gravando...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var promptCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(draftViewModel.suggestedTitle.isEmpty ? "Vamos começar?" : "Orientação")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text(draftViewModel.currentPrompt)
+                .foregroundStyle(.secondary)
+
+            if !draftViewModel.suggestedTitle.isEmpty {
+                Text(draftViewModel.suggestedTitle)
+                    .font(.headline)
+
+                Button {
+                    if let note = draftViewModel.saveNote(modelContext: modelContext) {
+                        lastSavedNote = note
+                        draftViewModel.stopSpeaking()
+                        if draftViewModel.isFinalized {
+                            draftViewModel.reset()
+                            voiceService.transcript = ""
+                        }
+                        showsSavedNote = true
+                    }
+                } label: {
+                    Label(draftViewModel.isCurrentOrientationSaved ? "Salvo em Notas" : "Salvar em Notas", systemImage: draftViewModel.isCurrentOrientationSaved ? "checkmark" : "square.and.arrow.down")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(draftViewModel.isProcessing || voiceService.isRecording || draftViewModel.isCurrentOrientationSaved)
+
+                Text(draftViewModel.savedNote == nil ? "Salva o texto desta orientação na sua nota." : "Acrescenta a orientação ao final da mesma nota.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let errorMessage = draftViewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func finalNoteCard(note: ThoughtNote) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sua ideia ganhou forma.")
+                .font(.headline)
+
+            Text(note.title)
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            Text(note.rawText)
+                .foregroundStyle(.secondary)
+
+            if !draftViewModel.topics.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tópicos da ideia")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    FlowTags(tags: draftViewModel.topics)
+                }
+                .padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func handleVoiceCapture() {
+        if voiceService.isRecording {
+            let transcript = voiceService.stopRecordingAndReturnTranscript()
+
+            Task {
+                await draftViewModel.handleTurn(transcript: transcript)
+
+                if draftViewModel.finalNote != nil {
+                    lastSavedNote = draftViewModel.savedNote
+                    voiceService.transcript = ""
                 }
             }
-    }
+        } else {
+            if draftViewModel.isFinalized {
+                draftViewModel.reset()
+            }
 
-    private var voiceCapture: some View {
-        Button {
-            voiceService.toggleRecording()
-        } label: {
-            Label(
-                voiceService.isRecording ? "Parar gravacao" : "Gravar por voz",
-                systemImage: voiceService.isRecording ? "stop.fill" : "mic.fill"
-            )
-            .font(.headline)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(voiceService.isRecording ? Color.gray : Color.orange)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            voiceService.startRecording()
         }
     }
+}
 
-    private var saveButton: some View {
-        Button {
-            saveNote()
-        } label: {
-            Label("Salvar nota", systemImage: "tray.and.arrow.down.fill")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
+private struct FlowTags: View {
+    let tags: [String]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(tags, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(Capsule())
+            }
         }
-        .buttonStyle(.borderedProminent)
-        .disabled(noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-    }
-
-    private func saveNote() {
-        let text = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-
-        let source: NoteSource = voiceService.transcript == noteText && !voiceService.transcript.isEmpty ? .voice : .text
-        let note = ThoughtNote(rawText: text, source: source)
-        modelContext.insert(note)
-        try? modelContext.save()
-
-        lastSavedNote = note
-        noteText = ""
-        voiceService.transcript = ""
     }
 }
