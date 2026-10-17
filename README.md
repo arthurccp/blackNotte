@@ -1,23 +1,3 @@
-# blackNotte
-
-Um refinador de ideias por voz: um espaço para pensar em voz alta, desenvolver pensamentos com perguntas e transformá-los em notas claras e próximos passos.
-
-> Conte do seu jeito. Algumas perguntas ajudam a organizar suas ideias e transformar pensamentos soltos em uma nota clara.
-
-## Screenshots
-
-<table>
-  <tr>
-    <th>Tela de captura</th>
-    <th>Gravação por voz</th>
-    <th>Biblioteca de notas</th>
-  </tr>
-  <tr>
-    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.39.png" alt="Tela de captura do blackNotte" width="260"></td>
-    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.45.png" alt="Gravação por voz do blackNotte" width="260"></td>
-    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.57.png" alt="Biblioteca de notas do blackNotte" width="260"></td>
-  </tr>
-</table>
 
 ## Por que criei este app
 
@@ -59,6 +39,28 @@ A implementação atual permite refinar uma ideia na conversa ativa e editar as 
 | Decidir | Examinar alternativas, critérios e riscos para apoiar uma decisão. |
 
 A análise pode incluir resumo, ideia central, perguntas, riscos, próximos passos e uma distinção entre fatos observados, inferências e questões em aberto.
+
+# blackNotte
+
+Um refinador de ideias por voz: um espaço para pensar em voz alta, desenvolver pensamentos com perguntas e transformá-los em notas claras e próximos passos.
+
+> Conte do seu jeito. Algumas perguntas ajudam a organizar suas ideias e transformar pensamentos soltos em uma nota clara.
+
+## Screenshots
+
+<table>
+  <tr>
+    <th>Tela de captura</th>
+    <th>Gravação por voz</th>
+    <th>Biblioteca de notas</th>
+  </tr>
+  <tr>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.39.png" alt="Tela de captura do blackNotte" width="260"></td>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.45.png" alt="Gravação por voz do blackNotte" width="260"></td>
+    <td><img src="img/Simulator%20Screenshot%20-%20iPhone%2016%20Pro%20-%202026-10-17%20at%2004.38.57.png" alt="Biblioteca de notas do blackNotte" width="260"></td>
+  </tr>
+</table>
+
 
 ## Como usar
 
